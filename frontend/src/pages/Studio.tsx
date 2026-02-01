@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/services/supabaseClient";
 import type { Slide, Project } from "@/types/schema";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { LayoutTemplate, Image as ImageIcon, Type, ChevronLeft } from "lucide-react";
+import { SlideEditor } from "@/components/studio/SlideEditor"; // Import Editor
 
 interface StudioProps {
   projectId: string;
@@ -14,28 +15,31 @@ export const Studio = ({ projectId, onBack }: StudioProps) => {
   const [slides, setSlides] = useState<Slide[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // New State for Editor Modal
+  const [selectedSlide, setSelectedSlide] = useState<Slide | null>(null);
+
+  const fetchData = async () => {
+    // 1. Fetch Project Info
+    const { data: projectData } = await supabase
+      .from("projects")
+      .select("*")
+      .eq("id", projectId)
+      .single();
+
+    setProject(projectData);
+
+    // 2. Fetch Slides
+    const { data: slidesData } = await supabase
+      .from("slides")
+      .select("*")
+      .eq("project_id", projectId)
+      .order("sort_order", { ascending: true });
+
+    if (slidesData) setSlides(slidesData);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      // 1. Fetch Project Info
-      const { data: projectData } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("id", projectId)
-        .single();
-
-      setProject(projectData);
-
-      // 2. Fetch Slides
-      const { data: slidesData } = await supabase
-        .from("slides")
-        .select("*")
-        .eq("project_id", projectId)
-        .order("sort_order", { ascending: true });
-
-      if (slidesData) setSlides(slidesData);
-      setLoading(false);
-    };
-
     fetchData();
   }, [projectId]);
 
@@ -71,20 +75,28 @@ export const Studio = ({ projectId, onBack }: StudioProps) => {
             transition={{ delay: index * 0.1 }}
             className="group relative aspect-video bg-black/40 border border-white/10 rounded-xl overflow-hidden backdrop-blur-md hover:border-emerald-500/50 transition-all duration-300 hover:shadow-2xl hover:shadow-emerald-900/20"
           >
+            {/* BACKGROUND IMAGE PREVIEW (NEW) */}
+            {slide.image_url && (
+                <div className="absolute inset-0">
+                    <img src={slide.image_url} alt="" className="w-full h-full object-cover opacity-50" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent" />
+                </div>
+            )}
+
             {/* Slide Header (Layout Badge) */}
-            <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-start bg-gradient-to-b from-black/80 to-transparent z-10">
-              <span className="text-xs font-mono text-white/50 bg-black/50 px-2 py-0.5 rounded">#{slide.sort_order}</span>
+            <div className="absolute top-0 left-0 right-0 p-3 flex justify-between items-start z-10">
+              <span className="text-xs font-mono text-white/50 bg-black/50 px-2 py-0.5 rounded backdrop-blur-md">#{slide.sort_order}</span>
               <LayoutIcon type={slide.layout_type} />
             </div>
 
             {/* Slide Content Preview */}
-            <div className="p-6 pt-10 h-full flex flex-col">
-              <h3 className="text-lg font-bold text-white mb-3 leading-tight line-clamp-2">
+            <div className="relative p-6 pt-10 h-full flex flex-col z-10">
+              <h3 className="text-lg font-bold text-white mb-3 leading-tight line-clamp-2 drop-shadow-lg">
                 {slide.content.title}
               </h3>
               <ul className="space-y-2">
                 {slide.content.body_points?.slice(0, 3).map((point, i) => (
-                  <li key={i} className="text-sm text-white/60 truncate flex gap-2 items-center">
+                  <li key={i} className="text-sm text-white/80 truncate flex gap-2 items-center drop-shadow-md">
                      <span className="w-1 h-1 rounded-full bg-emerald-500 shrink-0" />
                      <span className="truncate">{point}</span>
                   </li>
@@ -93,20 +105,34 @@ export const Studio = ({ projectId, onBack }: StudioProps) => {
             </div>
 
              {/* Hover Overlay */}
-             <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+             <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm z-20">
                 <span className="text-xs font-medium text-white/50 uppercase tracking-widest">Action</span>
-                <button className="px-5 py-2.5 bg-white text-black text-sm font-bold rounded-lg hover:scale-105 transition-transform hover:bg-emerald-50">
+                <button
+                    onClick={() => setSelectedSlide(slide)}
+                    className="px-5 py-2.5 bg-white text-black text-sm font-bold rounded-lg hover:scale-105 transition-transform hover:bg-emerald-50 cursor-pointer"
+                >
                     Open Editor
                 </button>
              </div>
           </motion.div>
         ))}
       </div>
+
+      {/* Editor Modal */}
+      <AnimatePresence>
+        {selectedSlide && (
+            <SlideEditor
+                slide={selectedSlide}
+                onClose={() => setSelectedSlide(null)}
+                onSave={fetchData} // Reload slides after save
+            />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
 
-// Helper Icon Component
+// Helper Icon Component (Unchanged)
 const LayoutIcon = ({ type }: { type: string }) => {
   switch (type) {
     case 'title_slide': return <div title="Title Slide"><Type className="w-4 h-4 text-purple-400" /></div>;
