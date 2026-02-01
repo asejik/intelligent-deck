@@ -1,9 +1,16 @@
+// 1. Update Imports
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { deckService } from "@/services/api";
 import { Loader2, Sparkles, ArrowRight } from "lucide-react";
 
-export const Generator = () => {
+// 2. Add Props Interface
+interface GeneratorProps {
+  onEnterStudio: (projectId: string) => void;
+}
+
+// 3. Update Component Definition
+export const Generator = ({ onEnterStudio }: GeneratorProps) => {
   const [text, setText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -18,8 +25,6 @@ export const Generator = () => {
     try {
       const data = await deckService.generateOutline(text);
       setProjectId(data.project_id);
-      console.log("Project Created:", data.project_id);
-      // We will redirect to the Studio Editor in the next step
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -39,15 +44,22 @@ export const Generator = () => {
         </div>
         <h3 className="text-2xl font-bold text-white mb-2">Blueprint Ready</h3>
         <p className="text-white/60 mb-6">Your deck outline has been architected successfully.</p>
-        <button className="px-6 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors">
+
+        {/* 4. Update Button onClick */}
+        <button
+          onClick={() => onEnterStudio(projectId)}
+          className="px-6 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-colors cursor-pointer"
+        >
           Enter Studio
         </button>
       </motion.div>
     );
   }
 
+  // ... (The return statement for the Input Form remains EXACTLY the same as before)
   return (
     <div className="w-full max-w-2xl mx-auto relative z-20">
+      {/* ... Keep the existing Input UI code identical ... */}
       <div className="relative group">
         <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
 
